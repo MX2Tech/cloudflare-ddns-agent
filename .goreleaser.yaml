@@ -1,0 +1,22 @@
+version: 2
+
+builds:
+  - id: cloudflare-ddns-agent
+    main: ./main.go
+    binary: cloudflare-ddns-agent
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    env:
+      - CGO_ENABLED=0
+
+archives:
+  - id: cloudflare-ddns-agent
+    formats:
+      - binary
+    name_template: "cloudflare-ddns-agent_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
