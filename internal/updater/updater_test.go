@@ -8,11 +8,24 @@ import (
 	"github.com/MX2Tech/cloudflare-ddns-agent/internal/config"
 )
 
+type createCall struct {
+	zoneID   string
+	hostname string
+	ip       string
+}
+
+type updateCall struct {
+	zoneID   string
+	recordID string
+	hostname string
+	ip       string
+}
+
 type fakeClient struct {
 	zoneIDs      map[string]string
 	records      map[string]*cloudflare.Record // key: hostname
-	createCalls  []string
-	updateCalls  []string
+	createCalls  []createCall
+	updateCalls  []updateCall
 	getRecordErr error
 }
 
@@ -32,12 +45,12 @@ func (f *fakeClient) GetRecord(zoneID, hostname string) (*cloudflare.Record, err
 }
 
 func (f *fakeClient) CreateRecord(zoneID, hostname, ip string) error {
-	f.createCalls = append(f.createCalls, hostname)
+	f.createCalls = append(f.createCalls, createCall{zoneID: zoneID, hostname: hostname, ip: ip})
 	return nil
 }
 
 func (f *fakeClient) UpdateRecord(zoneID, recordID, hostname, ip string) error {
-	f.updateCalls = append(f.updateCalls, hostname)
+	f.updateCalls = append(f.updateCalls, updateCall{zoneID: zoneID, recordID: recordID, hostname: hostname, ip: ip})
 	return nil
 }
 
@@ -63,7 +76,14 @@ func TestRun_CreatesWhenRecordMissing(t *testing.T) {
 		t.Errorf("got action %q, want %q", results[0].Action, "created")
 	}
 	if len(client.createCalls) != 1 {
-		t.Errorf("expected 1 create call, got %d", len(client.createCalls))
+		t.Fatalf("expected 1 create call, got %d", len(client.createCalls))
+	}
+	call := client.createCalls[0]
+	if call.zoneID != "zone1" {
+		t.Errorf("got zoneID %q, want %q", call.zoneID, "zone1")
+	}
+	if call.ip != "203.0.113.5" {
+		t.Errorf("got ip %q, want %q", call.ip, "203.0.113.5")
 	}
 }
 
@@ -82,7 +102,14 @@ func TestRun_UpdatesWhenIPDifferent(t *testing.T) {
 		t.Errorf("got action %q, want %q", results[0].Action, "updated")
 	}
 	if len(client.updateCalls) != 1 {
-		t.Errorf("expected 1 update call, got %d", len(client.updateCalls))
+		t.Fatalf("expected 1 update call, got %d", len(client.updateCalls))
+	}
+	call := client.updateCalls[0]
+	if call.zoneID != "zone1" {
+		t.Errorf("got zoneID %q, want %q", call.zoneID, "zone1")
+	}
+	if call.ip != "203.0.113.5" {
+		t.Errorf("got ip %q, want %q", call.ip, "203.0.113.5")
 	}
 }
 

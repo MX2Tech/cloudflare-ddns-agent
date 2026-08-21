@@ -99,6 +99,13 @@ func TestCreateRecord_Success(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
+		var body map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decoding request body: %v", err)
+		}
+		if body["content"] != "203.0.113.9" {
+			t.Errorf("got content %v, want %q", body["content"], "203.0.113.9")
+		}
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"errors":  []interface{}{},
@@ -115,6 +122,13 @@ func TestUpdateRecord_Success(t *testing.T) {
 	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPatch {
 			t.Errorf("expected PATCH, got %s", r.Method)
+		}
+		var body map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decoding request body: %v", err)
+		}
+		if body["content"] != "203.0.113.10" {
+			t.Errorf("got content %v, want %q", body["content"], "203.0.113.10")
 		}
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
