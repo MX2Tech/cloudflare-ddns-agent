@@ -40,10 +40,10 @@ cloudflare:
   api_token: "cfut_..."
 check_interval: 30s
 records:
-  - zone: tecnologiadsl.com.br
-    hostname: hub.tecnologiadsl.com.br
-  - zone: tecnologiadsl.com.br
-    hostname: vpn.tecnologiadsl.com.br
+  - zone: mx2tech.cloud
+    hostname: hub.mx2tech.cloud
+  - zone: mx2tech.cloud
+    hostname: vpn.mx2tech.cloud
 ```
 
 Depois de editar, aplique com:
