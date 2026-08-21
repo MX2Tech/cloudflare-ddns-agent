@@ -29,7 +29,19 @@ O instalador testa a configuração na hora e já mostra se funcionou.
 
 ## Gerando o token da Cloudflare
 
-Em [dash.cloudflare.com](https://dash.cloudflare.com) → My Profile → API Tokens → Create Token → template "Edit zone DNS". Restrinja à zona específica que você vai usar (não use a Global API Key).
+**Nunca use a Global API Key** — gere um token escopado só pra isso:
+
+1. Acesse [dash.cloudflare.com](https://dash.cloudflare.com) e faça login.
+2. Clique no seu ícone de perfil (canto superior direito) → **My Profile**.
+3. No menu lateral, vá em **API Tokens**.
+4. Clique em **Create Token**.
+5. Na lista de templates, ache **Edit zone DNS** e clique em **Use template**.
+6. Em **Permissions**, confirme que está `Zone` / `DNS` / `Edit` (já vem assim pelo template — não precisa mexer).
+7. Em **Zone Resources**, troque de "All zones" para **Specific zone** e selecione a zona que você vai usar (ex: `tecnologiadsl.com.br`). Isso garante que o token só enxerga esse domínio, nada mais da sua conta.
+8. Clique em **Continue to summary**, confira o resumo e clique em **Create Token**.
+9. Copie o token exibido (formato `cfut_...`) — ele só aparece uma vez nessa tela. Cole ele quando o `install.sh` pedir.
+
+Se perder o token, é só repetir o processo e gerar um novo (o antigo pode ser revogado na mesma tela de **API Tokens**).
 
 ## Configuração manual (múltiplos hostnames)
 
