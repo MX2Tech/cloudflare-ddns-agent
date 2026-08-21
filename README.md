@@ -21,8 +21,8 @@ curl -fsSL https://raw.githubusercontent.com/MX2Tech/cloudflare-ddns-agent/main/
 
 Vai pedir 4 informações:
 - **Cloudflare API Token** — veja abaixo como gerar.
-- **Zona** — o domínio raiz na Cloudflare (ex: `tecnologiadsl.com.br`).
-- **Hostname** — o registro a manter atualizado (ex: `hub.tecnologiadsl.com.br`).
+- **Zona** — o domínio raiz na Cloudflare (ex: `mx2tech.cloud`).
+- **Hostname** — o registro a manter atualizado (ex: `hub.mx2tech.cloud`).
 - **Intervalo** — de quanto em quanto tempo checar (padrão 30 segundos).
 
 O instalador testa a configuração na hora e já mostra se funcionou.
