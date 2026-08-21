@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+umask 077
 
 REPO="MX2Tech/cloudflare-ddns-agent"
 BIN_PATH="/usr/local/bin/cloudflare-ddns-agent"
@@ -23,25 +24,27 @@ esac
 
 echo "Baixando cloudflare-ddns-agent (linux/$GOARCH)..."
 DOWNLOAD_URL="https://github.com/$REPO/releases/latest/download/cloudflare-ddns-agent_linux_${GOARCH}"
-curl -fsSL "$DOWNLOAD_URL" -o "$BIN_PATH"
-chmod 755 "$BIN_PATH"
+curl -fsSL "$DOWNLOAD_URL" -o "${BIN_PATH}.tmp"
+chmod 755 "${BIN_PATH}.tmp"
+mv "${BIN_PATH}.tmp" "$BIN_PATH"
 
 mkdir -p "$CONFIG_DIR"
 
-echo ""
-echo "Configuração do cloudflare-ddns-agent"
-echo "--------------------------------------"
-printf "Cloudflare API Token: "
-read -r CF_TOKEN
-printf "Zona (ex: tecnologiadsl.com.br): "
-read -r CF_ZONE
-printf "Hostname a atualizar (ex: hub.tecnologiadsl.com.br): "
-read -r CF_HOSTNAME
-printf "Intervalo de checagem em segundos [30]: "
-read -r CF_INTERVAL
-CF_INTERVAL=${CF_INTERVAL:-30}
+if [ ! -f "$CONFIG_PATH" ]; then
+  echo ""
+  echo "Configuração do cloudflare-ddns-agent"
+  echo "--------------------------------------"
+  printf "Cloudflare API Token: "
+  read -r CF_TOKEN < /dev/tty
+  printf "Zona (ex: tecnologiadsl.com.br): "
+  read -r CF_ZONE < /dev/tty
+  printf "Hostname a atualizar (ex: hub.tecnologiadsl.com.br): "
+  read -r CF_HOSTNAME < /dev/tty
+  printf "Intervalo de checagem em segundos [30]: "
+  read -r CF_INTERVAL < /dev/tty
+  CF_INTERVAL=${CF_INTERVAL:-30}
 
-cat > "$CONFIG_PATH" <<EOF
+  cat > "$CONFIG_PATH" <<EOF
 cloudflare:
   api_token: "$CF_TOKEN"
 check_interval: ${CF_INTERVAL}s
@@ -49,7 +52,11 @@ records:
   - zone: $CF_ZONE
     hostname: $CF_HOSTNAME
 EOF
-chmod 600 "$CONFIG_PATH"
+  chmod 600 "$CONFIG_PATH"
+else
+  echo ""
+  echo "Configuração existente encontrada em $CONFIG_PATH -- mantendo como está."
+fi
 
 echo ""
 echo "Testando a configuração..."
@@ -64,5 +71,5 @@ echo "Instalando o serviço systemd..."
 "$BIN_PATH" install
 
 echo ""
-echo "Pronto! $CF_HOSTNAME vai se manter atualizado a cada ${CF_INTERVAL}s."
+echo "Pronto! O agente está instalado e ativo."
 echo "Ver logs: journalctl -u cloudflare-ddns-agent -f"
