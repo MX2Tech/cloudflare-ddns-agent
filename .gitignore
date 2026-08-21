@@ -1,0 +1,3 @@
+/cloudflare-ddns-agent
+/dist/
+*.test
