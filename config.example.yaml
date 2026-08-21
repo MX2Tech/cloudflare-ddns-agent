@@ -1,0 +1,6 @@
+cloudflare:
+  api_token: "cfut_your_token_here"
+check_interval: 30s
+records:
+  - zone: example.com
+    hostname: hub.example.com
