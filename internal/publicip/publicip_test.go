@@ -62,3 +62,23 @@ func TestDetectFrom_InvalidIPResponse(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 }
+
+func TestDetectFrom_IPv6ResponseFallsBackToNextSource(t *testing.T) {
+	ipv6 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("2001:db8::1"))
+	}))
+	defer ipv6.Close()
+
+	good := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("198.51.100.7"))
+	}))
+	defer good.Close()
+
+	ip, err := DetectFrom([]string{ipv6.URL, good.URL})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ip != "198.51.100.7" {
+		t.Errorf("got %q, want %q", ip, "198.51.100.7")
+	}
+}

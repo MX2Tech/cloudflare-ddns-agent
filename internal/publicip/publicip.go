@@ -10,8 +10,8 @@ import (
 )
 
 var Sources = []string{
-	"https://ifconfig.me",
-	"https://icanhazip.com",
+	"https://ipv4.icanhazip.com",
+	"https://api.ipify.org",
 }
 
 var httpClient = &http.Client{Timeout: 5 * time.Second}
@@ -55,8 +55,9 @@ func fetchIP(url string) (string, error) {
 	}
 
 	ip := strings.TrimSpace(string(body))
-	if net.ParseIP(ip) == nil {
-		return "", fmt.Errorf("%s returned invalid IP %q", url, ip)
+	parsed := net.ParseIP(ip)
+	if parsed == nil || parsed.To4() == nil {
+		return "", fmt.Errorf("%s returned invalid IPv4 address %q", url, ip)
 	}
 
 	return ip, nil
