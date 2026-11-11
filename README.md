@@ -9,9 +9,9 @@ A cada execução, o agente:
 2. Consulta na Cloudflare qual é o valor atual de cada hostname configurado (nunca confia em cache local).
 3. Cria o registro se não existir, atualiza se o IP mudou, ou não faz nada se já está correto.
 
-Isso roda em loop via `systemd timer` (instalado automaticamente), não como processo contínuo.
+No Linux isso roda via `systemd timer` (instalado automaticamente), não como processo contínuo. No Windows roda como uma tarefa agendada (veja abaixo).
 
-## Instalação
+## Instalação no Linux
 
 Como root, numa máquina Linux (amd64 ou arm64):
 
@@ -26,6 +26,33 @@ Vai pedir 4 informações:
 - **Intervalo** — de quanto em quanto tempo checar (padrão 30 segundos).
 
 O instalador testa a configuração na hora e já mostra se funcionou.
+
+## Instalação no Windows
+
+Windows 10/11 ou Server 2016+ (amd64). Abra o **PowerShell como administrador** e rode:
+
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/MX2Tech/cloudflare-ddns-agent/main/install.ps1))) -Zona mx2tech.cloud -Hostname cliente.mx2tech.cloud
+```
+
+O token é pedido de forma oculta (não fica no histórico do PowerShell). O instalador:
+- baixa o `.exe` da última release e confere o SHA-256 contra o `checksums.txt`;
+- grava o binário em `C:\Program Files\cloudflare-ddns-agent\` (só administrador escreve lá, e ele roda como SYSTEM);
+- grava a config em `C:\ProgramData\cloudflare-ddns-agent\config.yaml`, numa pasta acessível **só por SYSTEM e Administradores** (o `ProgramData` é legível por qualquer usuário por padrão);
+- testa com `update` e registra a tarefa agendada `cloudflare-ddns-agent`.
+
+A tarefa roda `cloudflare-ddns-agent.exe run` como **SYSTEM**: sobe no boot sem precisar de ninguém logado, checa a cada `check_interval` e tem um watchdog de 5 minutos que relança o processo se ele cair (sem abrir uma segunda instância). A config é relida a cada ciclo, então editar o `config.yaml` não exige reiniciar nada.
+
+Parâmetros úteis: `-IntervaloSegundos 60`, `-Versao v0.2.0`, `-Reconfigurar` (regrava a config e pede o token de novo), `-BinarioLocal C:\caminho\agente.exe` (máquina sem acesso ao GitHub).
+
+Log (só mudanças de IP e erros, mais um "unchanged" por hora como sinal de vida; limitado a ~10 MB):
+
+```powershell
+Get-Content C:\ProgramData\cloudflare-ddns-agent\agent.log -Tail 20 -Wait
+Get-ScheduledTask cloudflare-ddns-agent | Get-ScheduledTaskInfo
+```
+
+Desinstalar: `& "C:\Program Files\cloudflare-ddns-agent\cloudflare-ddns-agent.exe" uninstall` (remove a tarefa; config e registros DNS ficam).
 
 ## Gerando o token da Cloudflare
 
@@ -67,8 +94,9 @@ sudo cloudflare-ddns-agent install
 
 ```bash
 cloudflare-ddns-agent update     # roda uma checagem/atualização manual
-cloudflare-ddns-agent install    # instala e ativa o timer do systemd
-cloudflare-ddns-agent uninstall  # remove o timer do systemd
+cloudflare-ddns-agent run        # checa para sempre, a cada check_interval (é o que a tarefa do Windows roda)
+cloudflare-ddns-agent install    # Linux: instala e ativa o timer do systemd | Windows: registra e inicia a tarefa agendada
+cloudflare-ddns-agent uninstall  # Linux: remove o timer | Windows: remove a tarefa agendada
 ```
 
 ## Ver logs
@@ -86,7 +114,8 @@ Isso remove o timer/service do systemd, mas não apaga `/etc/cloudflare-ddns-age
 
 ## Limitações
 
-- Só Linux (amd64/arm64).
+- Linux (amd64/arm64) e Windows (amd64).
+- O token tem permissão de DNS na **zona inteira** (a Cloudflare não escopa token por registro): quem for administrador da máquina consegue editar qualquer registro da zona. Em máquina de terceiros, prefira uma zona dedicada só para DDNS e aponte o nome final para ela por CNAME.
 - Só registros A (IPv4) — sem suporte a IPv6/AAAA.
 - Só Cloudflare como provedor de DNS.
 

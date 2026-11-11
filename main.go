@@ -3,15 +3,14 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/MX2Tech/cloudflare-ddns-agent/internal/cloudflare"
 	"github.com/MX2Tech/cloudflare-ddns-agent/internal/config"
+	"github.com/MX2Tech/cloudflare-ddns-agent/internal/loop"
 	"github.com/MX2Tech/cloudflare-ddns-agent/internal/publicip"
-	"github.com/MX2Tech/cloudflare-ddns-agent/internal/systemdinstall"
 	"github.com/MX2Tech/cloudflare-ddns-agent/internal/updater"
 )
-
-const defaultConfigPath = "/etc/cloudflare-ddns-agent/config.yaml"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -21,9 +20,11 @@ func main() {
 
 	switch os.Args[1] {
 	case "update":
-		os.Exit(runUpdate(defaultConfigPath))
+		os.Exit(runUpdate(defaultConfigPath()))
+	case "run":
+		os.Exit(runLoop(defaultConfigPath()))
 	case "install":
-		os.Exit(runInstall(defaultConfigPath))
+		os.Exit(runInstall(defaultConfigPath()))
 	case "uninstall":
 		os.Exit(runUninstall())
 	case "-h", "--help", "help":
@@ -37,12 +38,16 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Fprintln(os.Stderr, `cloudflare-ddns-agent - keeps DNS A records pointed at this machine's public IP
+	fmt.Fprintf(os.Stderr, `cloudflare-ddns-agent - keeps DNS A records pointed at this machine's public IP
 
 Usage:
-  cloudflare-ddns-agent update     Check the public IP and reconcile all configured records
-  cloudflare-ddns-agent install    Install and enable the systemd timer
-  cloudflare-ddns-agent uninstall  Stop and remove the systemd timer`)
+  cloudflare-ddns-agent update     Check the public IP and reconcile all configured records once
+  cloudflare-ddns-agent run        Reconcile forever, every check_interval (used by the Windows task)
+  cloudflare-ddns-agent install    %s
+  cloudflare-ddns-agent uninstall  %s
+
+Config: %s
+`, installDescription, uninstallDescription, defaultConfigPath())
 }
 
 func runUpdate(configPath string) int {
@@ -58,13 +63,35 @@ func runUpdate(configPath string) int {
 	exitCode := 0
 	for _, r := range results {
 		if r.Action == "error" {
-			fmt.Fprintf(os.Stderr, "level=error hostname=%s msg=%q\n", r.Hostname, r.Err.Error())
+			fmt.Fprintln(os.Stderr, loop.FormatResult(r))
 			exitCode = 1
 			continue
 		}
-		fmt.Printf("level=info hostname=%s action=%s ip=%s\n", r.Hostname, r.Action, r.IP)
+		fmt.Println(loop.FormatResult(r))
 	}
 	return exitCode
+}
+
+func runLoop(configPath string) int {
+	out, closeLog, err := openRunLog()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "level=error msg=%q\n", err.Error())
+		return 1
+	}
+	defer closeLog()
+
+	loop.Run(loop.Options{
+		LoadConfig: func() (*config.Config, error) { return config.Load(configPath) },
+		NewClient: func(apiToken string) updater.CloudflareClient {
+			return cloudflare.NewClient(apiToken)
+		},
+		DetectIP: publicip.Detect,
+		Log: func(line string) {
+			fmt.Fprintf(out, "%s %s\n", time.Now().Format(time.RFC3339), line)
+		},
+		Sleep: time.Sleep,
+	})
+	return 0
 }
 
 func runInstall(configPath string) int {
@@ -80,20 +107,20 @@ func runInstall(configPath string) int {
 		return 1
 	}
 
-	if err := systemdinstall.Install(interval); err != nil {
+	if err := installService(interval); err != nil {
 		fmt.Fprintf(os.Stderr, "level=error msg=%q\n", err.Error())
 		return 1
 	}
 
-	fmt.Println(`level=info msg="cloudflare-ddns-agent installed and timer enabled"`)
+	fmt.Printf("level=info msg=%q\n", installedMessage)
 	return 0
 }
 
 func runUninstall() int {
-	if err := systemdinstall.Uninstall(); err != nil {
+	if err := uninstallService(); err != nil {
 		fmt.Fprintf(os.Stderr, "level=error msg=%q\n", err.Error())
 		return 1
 	}
-	fmt.Println(`level=info msg="cloudflare-ddns-agent timer removed"`)
+	fmt.Printf("level=info msg=%q\n", uninstalledMessage)
 	return 0
 }
