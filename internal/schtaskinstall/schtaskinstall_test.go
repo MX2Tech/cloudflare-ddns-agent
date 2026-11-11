@@ -91,7 +91,7 @@ func TestInstallWith_CreatesTaskFromTempFileAndStartsIt(t *testing.T) {
 		return nil
 	}
 
-	if err := installWith(`C:\agent.exe`, writeTemp, run); err != nil {
+	if err := installWith(`C:\agent.exe`, writeTemp, run, run); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -121,7 +121,7 @@ func TestInstallWith_IgnoresEndFailureWhenTaskDoesNotExistYet(t *testing.T) {
 		}
 		return nil
 	}
-	if err := installWith(`C:\agent.exe`, writeTemp, run); err != nil {
+	if err := installWith(`C:\agent.exe`, writeTemp, run, run); err != nil {
 		t.Fatalf("first install must not fail on /End: %v", err)
 	}
 }
@@ -134,7 +134,7 @@ func TestInstallWith_PropagatesCreateError(t *testing.T) {
 		}
 		return nil
 	}
-	if err := installWith(`C:\agent.exe`, writeTemp, run); err == nil {
+	if err := installWith(`C:\agent.exe`, writeTemp, run, run); err == nil {
 		t.Fatal("expected error, got nil")
 	}
 }
@@ -145,7 +145,7 @@ func TestUninstallWith_EndsAndDeletesTask(t *testing.T) {
 		ran = append(ran, append([]string{name}, args...))
 		return nil
 	}
-	if err := uninstallWith(run); err != nil {
+	if err := uninstallWith(run, run); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(ran) != 2 || ran[1][1] != "/Delete" {

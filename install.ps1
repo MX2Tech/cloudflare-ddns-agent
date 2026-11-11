@@ -37,10 +37,14 @@ function Falhar([string]$msg) { Write-Host "  [XX] $msg" -ForegroundColor Red; e
 function Ok([string]$msg) { Write-Host "  [ok] $msg" -ForegroundColor Green }
 
 # Codigo de saida de um executavel sem deixar o stderr dele virar excecao no PS 5.1.
-function Invoke-Nativo([string]$Arquivo, [string[]]$Argumentos) {
+# -Silencioso descarta a saida (o icacls imprime resumo mesmo com /Q).
+function Invoke-Nativo([string]$Arquivo, [string[]]$Argumentos, [switch]$Silencioso) {
     $anterior = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
-    try { & $Arquivo @Argumentos | Out-Host; return $LASTEXITCODE }
+    try {
+        if ($Silencioso) { & $Arquivo @Argumentos 2>&1 | Out-Null } else { & $Arquivo @Argumentos | Out-Host }
+        return $LASTEXITCODE
+    }
     finally { $ErrorActionPreference = $anterior }
 }
 
@@ -97,7 +101,7 @@ Ok "binario em $Exe"
 
 # 2. Pasta da config: restringe ANTES de gravar o token. SIDs = independente do idioma do Windows.
 New-Item -ItemType Directory -Force -Path $DataDir | Out-Null
-$rc = Invoke-Nativo 'icacls' @($DataDir, '/inheritance:r', '/grant:r', '*S-1-5-18:(OI)(CI)F', '*S-1-5-32-544:(OI)(CI)F', '/Q')
+$rc = Invoke-Nativo 'icacls' @($DataDir, '/inheritance:r', '/grant:r', '*S-1-5-18:(OI)(CI)F', '*S-1-5-32-544:(OI)(CI)F', '/Q') -Silencioso
 if ($rc -ne 0) { Falhar "Nao consegui restringir as permissoes de $DataDir (icacls saiu com $rc)." }
 Ok "$DataDir acessivel so por SYSTEM e Administradores"
 

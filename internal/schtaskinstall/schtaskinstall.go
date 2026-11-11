@@ -126,6 +126,12 @@ func execRunner(name string, args ...string) error {
 	return cmd.Run()
 }
 
+// execQuiet discards output: "schtasks /End" on a task that does not exist
+// yet prints a scary "ERROR: file not found" on every first install.
+func execQuiet(name string, args ...string) error {
+	return exec.Command(name, args...).Run()
+}
+
 func osTempWriter(data []byte) (string, func(), error) {
 	f, err := os.CreateTemp("", "cloudflare-ddns-agent-*.xml")
 	if err != nil {
@@ -146,10 +152,10 @@ func osTempWriter(data []byte) (string, func(), error) {
 
 // Install registers (or replaces) the scheduled task and starts it now.
 func Install(binaryPath string) error {
-	return installWith(binaryPath, osTempWriter, execRunner)
+	return installWith(binaryPath, osTempWriter, execRunner, execQuiet)
 }
 
-func installWith(binaryPath string, writeTemp TempWriter, run Runner) error {
+func installWith(binaryPath string, writeTemp TempWriter, run, quiet Runner) error {
 	path, cleanup, err := writeTemp(EncodeUTF16LE(GenerateTaskXML(binaryPath, Watchdog)))
 	if err != nil {
 		return fmt.Errorf("writing task definition: %w", err)
@@ -157,7 +163,7 @@ func installWith(binaryPath string, writeTemp TempWriter, run Runner) error {
 	defer cleanup()
 
 	// Stop a running loop first so a replaced binary takes effect right away.
-	_ = run("schtasks", "/End", "/TN", TaskName)
+	_ = quiet("schtasks", "/End", "/TN", TaskName)
 	if err := run("schtasks", "/Create", "/TN", TaskName, "/XML", path, "/F"); err != nil {
 		return fmt.Errorf("schtasks /Create: %w", err)
 	}
@@ -169,11 +175,11 @@ func installWith(binaryPath string, writeTemp TempWriter, run Runner) error {
 
 // Uninstall stops and deletes the scheduled task.
 func Uninstall() error {
-	return uninstallWith(execRunner)
+	return uninstallWith(execRunner, execQuiet)
 }
 
-func uninstallWith(run Runner) error {
-	_ = run("schtasks", "/End", "/TN", TaskName)
+func uninstallWith(run, quiet Runner) error {
+	_ = quiet("schtasks", "/End", "/TN", TaskName)
 	if err := run("schtasks", "/Delete", "/TN", TaskName, "/F"); err != nil {
 		return fmt.Errorf("schtasks /Delete: %w", err)
 	}
